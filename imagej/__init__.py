@@ -474,7 +474,7 @@ def init(ij_dir_or_version_or_endpoint=None, headless=True, add_legacy=True):
                 dtype_to_use = np.dtype('float64')
             return np.zeros(self.dims(image), dtype=dtype_to_use)
 
-        def rai_to_numpy(self, rai):
+        def rai_to_numpy(self, rai: RandomAccessibleInterval):
             """Convert a RandomAccessibleInterval into a numpy array.
 
             Convert a RandomAccessibleInterval ('net.imglib2.RandomAccessibleInterval') 
@@ -1140,6 +1140,20 @@ def init(ij_dir_or_version_or_endpoint=None, headless=True, add_legacy=True):
                     res = Views.hyperSlice(res, d, self.min(d))
             return res
 
+        def reshape(self):
+            #TODO: match numpy reshape arguments
+            return
+        
+        def stuff(self):
+            return "rai"
+
+    @JImplementationFor('net.imagej.Dataset')
+    #TODO this should extend RAIOperators via subclassing (??)
+    class DatasetFunctions(RAIOperators):
+        def stuff(self):
+            return RAIOperators.stuff(self) + ", Dataset"
+            
+    #TODO return dataset objects after slicing
     # Forward stdout and stderr from Java to Python.
     from jpype import JOverride, JImplements
     @JImplements('org.scijava.console.OutputListener')
