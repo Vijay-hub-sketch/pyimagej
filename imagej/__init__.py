@@ -42,7 +42,6 @@ import imagej.stack as stack
 from pathlib import Path
 
 from jpype import JArray, JException, JImplementationFor, JObject
-
 from .config import __author__, __version__
 
 _logger = logging.getLogger(__name__)
