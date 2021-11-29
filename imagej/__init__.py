@@ -483,6 +483,9 @@ def init(ij_dir_or_version_or_endpoint=None, headless=True, add_legacy=True):
             :param rai: A RandomAccisbleInterval ('net.imglib2.RandomAccessibleInterval').
             :return: A numpy array of the input RandomAccisbleInterval.
             """
+            if not isinstance(rai, RandomAccessibleInterval):
+                raise ValueError("Invalid type: rai is not a RandomAccessibleInterval")
+
             # check imagej-common version for fast copy availability.
             ijc_slow_copy_version = '0.30.0'
             ijc_active_version = sj.get_version(Dataset)
@@ -800,7 +803,7 @@ def init(ij_dir_or_version_or_endpoint=None, headless=True, add_legacy=True):
                 if self._ij.convert().supports(data, Dataset):
                     # HACK: Converter exists for ImagePlus -> Dataset, but not ImagePlus -> RAI.
                     data = self._ij.convert().convert(data, Dataset)
-                    return self._dataset_to_xarray(data)
+                    return self.dataset_to_xarray(data)
                 if self._ij.convert().supports(data, RandomAccessibleInterval):
                     rai = self._ij.convert().convert(data, RandomAccessibleInterval)
                     return self.rai_to_numpy(rai)
@@ -809,20 +812,21 @@ def init(ij_dir_or_version_or_endpoint=None, headless=True, add_legacy=True):
                 raise exc
             return sj.to_python(data)
 
-        def _dataset_to_xarray(self, dataset):
+        def dataset_to_xarray(self, dataset: Dataset):
             """
-            Converts an ImageJ dataset into an xarray, inverting F-style (slow idx last) to C-style (slow idx first)
-            :param dataset: ImageJ dataset
+            Converts an ImageJ2 Dataset into an xarray, inverting F-style (slow idx last) to C-style (slow idx first)
+            :param dataset: ImageJ2 Dataset
             :return: xarray with reversed (C-style) dims and coords as labeled by the dataset
             """
+            if not isinstance(dataset, Dataset):
+                raise ValueError("Invalid type: dataset is not a Dataset")
+
             attrs = self.from_java(dataset.getProperties())
             axes = [(JObject(dataset.axis(idx), sj.jimport('net.imagej.axis.CalibratedAxis')))
                     for idx in range(dataset.numDimensions())]
-
             dims = [self._ijdim_to_pydim(axes[idx].type().getLabel()) for idx in range(len(axes))]
             values = self.rai_to_numpy(dataset)
             coords = self._get_axes_coords(axes, dims, np.shape(np.transpose(values)))
-
             if dims[len(dims)-1].lower() in ['c', 'channel']:
                 xarr_dims = self._invert_except_last_element(dims)
                 values = np.moveaxis(values, 0, -1)
