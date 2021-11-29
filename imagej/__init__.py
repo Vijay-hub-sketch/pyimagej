@@ -55,6 +55,108 @@ try:
 except KeyError as e:
     pass
 
+class DimensionOrder:
+        def __init__(self, image):
+            # TODO: Add image type checks here -- for now only java -> python
+            self.python_order_dims, self.python_order_labels = self._java_to_python(image)
+            self.image_axes = self._get_axes(image)
+            self.dim_dict = self._get_dim_dict(image)
+            #self.java_order = self._python_to_java(image)
+
+        def array_reshape(self, dim_dict: dict, array: np.ndarray) -> np.ndarray:
+            dims = self._get_dim_values(array)
+            # use dim_dict as guide to reorder the array
+            for i in range(len(dims)):
+                for k, v in dim_dict.items():
+                    if dims[i] == v:
+                        print(f"value: {v}\nkey: {k}")
+                        # now we can order based on matches
+
+            return
+
+        def _get_dim_dict(self, image):
+            # get labels for dictionary key
+            axes = self._get_axes(image)
+            labels = [str(axes[idx].type().getLabel()) for idx in range(len(axes))]
+            for i in range(len(labels)):
+                labels[i] = labels[i].lower()
+                if labels[i] == 'channel':
+                    labels[i] = 'c'
+                if labels[i] == 'time':
+                    labels[i] = 't'
+            
+            # get dimensions for
+            dims = self._get_dim_values(image)
+            # create dict {label: dim}
+            dim_dict = {}
+            for i in range(image.numDimensions()):
+                dim_dict[labels[i]] = dims[i]
+                
+            return dim_dict
+
+        def _get_axes(self, image):
+            """Return the axes of an image
+            """
+            axes = [(JObject(image.axis(idx), sj.jimport('net.imagej.axis.CalibratedAxis')))
+                        for idx in range(image.numDimensions())]
+            return axes
+
+        def _get_dim_values(self, image):
+            """Return the dimension values of a java image.
+            """
+            if isinstance(image, sj.jimport('net.imglib2.RandomAccessibleInterval')):
+                return [image.dimension(d) for d in range(image.numDimensions())] # use Interval here
+            if isinstance(image, np.ndarray):
+                return image.shape
+
+
+        def _python_to_java(self, dims: list):
+            """
+            input:  (t, z, y, x, c)
+            output: (x, y, ., ., .)
+            """
+            #TODO needs to support logic
+            java_dims = list(reversed(dims))
+            return java_dims
+
+        def _java_to_python(self, image):
+            """
+            input:  (x, y, c, z, t)
+            output: (t, z, y, x, c)
+            """
+            dim_dict = self._get_dim_dict(image)
+            py_order_dims = []
+            py_order_labels = []
+            for i in range(image.numDimensions()):
+                if 't' in dim_dict:
+                    if 't' not in py_order_labels:
+                        py_order_dims.append(dim_dict['t'])
+                        py_order_labels.append('t')
+                        continue
+                if 'z' in dim_dict:
+                    if 'z' not in py_order_labels:
+                        py_order_dims.append(dim_dict['z'])
+                        py_order_labels.append('z')
+                        continue
+                if 'y' in dim_dict:
+                    if 'y' not in py_order_labels:
+                        py_order_dims.append(dim_dict['y'])
+                        py_order_labels.append('y')
+                        continue
+                if 'x' in dim_dict:
+                    if 'x' not in py_order_labels:
+                        py_order_dims.append(dim_dict['x'])
+                        py_order_labels.append('x')
+                        continue
+                if 'c' in dim_dict:
+                    if 'c' not in py_order_labels:
+                        py_order_dims.append(dim_dict['c'])
+                        py_order_labels.append('c')
+                        continue
+                
+            return py_order_dims, py_order_labels
+
+        # TODO: functions (both directions) to obtain reshape coordinates
 
 def _dump_exception(exc):
     if _logger.isEnabledFor(logging.DEBUG):
@@ -255,6 +357,20 @@ def init(ij_dir_or_version_or_endpoint=None, headless=True, add_legacy=True):
                 dims = [dim for dim in dims if dim > 1]
                 return dims
             raise TypeError('Unsupported Java type: ' + str(sj.jclass(image).getName()))
+
+        def dimension_order(self, image):
+            """Return a DimensionOrder object.
+
+            Return a DimensionOrder object that stores and converts the dimension values
+            and labels.
+            :param image:
+                A numpy array.
+                OR An ImgLib2 image ('net.imglib2.Interval').
+                OR An ImageJ2 Dataset ('net.imagej.Dataset').
+                OR An ImageJ ImagePlus ('ij.ImagePlus').
+            :return: 
+            """
+            return DimensionOrder(image)
 
         def dtype(self, image_or_type):
             """Return the dtype of the input image.
