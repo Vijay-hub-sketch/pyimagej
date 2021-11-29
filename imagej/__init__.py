@@ -835,6 +835,19 @@ def init(ij_dir_or_version_or_endpoint=None, headless=True, add_legacy=True):
             xarr = xr.DataArray(values, dims=xarr_dims, coords=coords, attrs=attrs)
             return xarr
 
+        def dataset_to_xarray2(self, dataset: Dataset):
+            if not isinstance(dataset, Dataset):
+                raise ValueError("Invalid type: dataset is not a Dataset")
+            attrs = self.from_java(dataset.getProperties())
+            dim_order = DimensionOrder(dataset)
+            values = self.rai_to_numpy(dataset)
+            breakpoint()
+            # match input dims to dict and do maths for moxaxis
+            reordered_values = dim_order.array_reshape(values)
+            coords = self._get_axes_coords(dim_order.image_axes, dim_order.python_order_labels, values)
+            xarr = xr.DataArray(values, dims=dim_order.python_order_labels, coords=coords, attrs=attrs)
+            return xarr
+
         def _invert_except_last_element(self, lst):
             """
             Invert a list except for the last element.
